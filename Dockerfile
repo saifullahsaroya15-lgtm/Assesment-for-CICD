@@ -9,7 +9,8 @@ COPY package*.json ./
 # Install dependencies (including dev deps for testing if needed during build, 
 # though usually we only want prod deps for the final image. 
 # Here we install all to run tests in build stage if we wanted, but we'll prune later)
-RUN npm ci
+# Install dependencies
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -30,7 +31,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy only production dependencies from builder
 COPY --from=builder /app/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy application source code
 COPY --from=builder /app/app.js ./

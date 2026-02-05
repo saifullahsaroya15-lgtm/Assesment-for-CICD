@@ -6,11 +6,17 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   # 1. Continuous Integration: Test & Code Quality
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -19,19 +25,24 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          # cache: 'npm' # Disabled to prevent "lock file not found" error
+          # cache: 'npm' # Commented out until package-lock.json is committed
 
       - name: Install Dependencies
-        run: npm install # uses `install` to generate lockfile on the fly
+        # Using 'npm install' instead of 'npm ci' to allow builds without package-lock.json
+        # Once you commit package-lock.json, you should switch this to 'npm ci'
+        run: npm install
 
       - name: Run Tests
         run: npm test
 
   # 2. Build & Security Scan
-  build-and-security:
-    name: Build Docker Image & Scan
+  build-and-push:
+    name: Build & Push Docker Image
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Required to push to GHCR
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -39,26 +50,38 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # - name: Login to Docker Hub
-      #   uses: docker/login-action@v2
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to the Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker Image
+      - name: Extract Metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            latest
+
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: false # Set to 'true' if you have credentials configured above
-          tags: devops-candidate-app:${{ github.sha }}
-          outputs: type=docker,dest=/tmp/myimage.tar # Save for scanning
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=docker,dest=/tmp/myimage.tar # Save for scanning (optional, if pushing, we might scan the registry image or local)
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
           input: /tmp/myimage.tar
           format: 'table'
-          exit-code: '1' # Fail the job if Critical vulnerabilities are found
+          exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
@@ -66,28 +89,17 @@ jobs:
   # 3. Deployment (Staging)
   deploy:
     name: Deploy to Staging
-    needs: build-and-security
+    needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Only deploy from main branch
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Simulate Deployment
         run: |
-          echo " Starting Deployment to Staging Environment..."
-          # Example of real authentication using secrets:
-          # echo "Exporting AWS keys..."
-          # export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          # export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
-          echo " Authenticating with Cloud Provider..."
-          echo " Pulling image devops-candidate-app:${{ github.sha }}"
-
-          echo " Updating ECS Service / Kubernetes Deployment..."
-          echo " Verifying Health Check..."
-          echo " Deployment Successful! "
-          # In a real scenario, this would use:
-          # - aws ecs update-service
-          # - kubectl apply -f k8s/
-          # - helm upgrade
+          echo "🚀 Starting Deployment to Staging Environment..."
+          echo "🔐 Authenticating..."
+          echo "⬇️ Pulling image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🔄 Updating Service..."
+          echo "✅ Deployment Successful!"
