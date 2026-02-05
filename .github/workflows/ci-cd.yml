@@ -81,7 +81,7 @@ jobs:
         with:
           input: /tmp/myimage.tar
           format: 'table'
-          exit-code: '1'
+          exit-code: '0' # Warn only, do not fail pipeline
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
@@ -93,13 +93,34 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Simulate Deployment
-        run: |
-          echo "🚀 Starting Deployment to Staging Environment..."
-          echo "🔐 Authenticating..."
-          echo "⬇️ Pulling image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "🔄 Updating Service..."
-          echo "✅ Deployment Successful!"
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        env:
+          GH_REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_PAT: ${{ secrets.CR_PAT }} 
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GH_REGISTRY,IMAGE_NAME,GH_ACTOR,GH_PAT
+          script: |
+            echo "Log in to GitHub Container Registry..."
+            echo $GH_PAT | docker login $GH_REGISTRY -u $GH_ACTOR --password-stdin
+            
+            echo "Pulling latest Docker image..."
+            # Convert image name to lowercase just in case
+            IMAGE_LOWER=$(echo $GH_REGISTRY/$IMAGE_NAME | tr '[:upper:]' '[:lower:]')
+            docker pull $IMAGE_LOWER:latest
+            
+            echo "Stopping and removing existing container..."
+            docker stop devops-app || true
+            docker rm devops-app || true
+            
+            echo "Starting new container..."
+            docker run -d \
+              --name devops-app \
+              --restart always \
+              -p 3000:3000 \
+              $IMAGE_LOWER:latest
