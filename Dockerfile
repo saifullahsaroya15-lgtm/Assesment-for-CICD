@@ -1,7 +1,7 @@
 # Stage 1: Builder
 FROM node:20-alpine AS builder
 
-# Update global npm to fix vulnerabilities (CVE-2026-24842)
+# Update global npm to fix vulnerabilities
 RUN npm install -g npm@latest
 
 WORKDIR /app

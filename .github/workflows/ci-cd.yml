@@ -25,12 +25,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          # cache: 'npm' # Commented out until package-lock.json is committed
+          cache: 'npm'
 
       - name: Install Dependencies
-        # Using 'npm install' instead of 'npm ci' to allow builds without package-lock.json
-        # Once you commit package-lock.json, you should switch this to 'npm ci'
-        run: npm install
+        run: npm ci
 
       - name: Run Tests
         run: npm test

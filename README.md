@@ -78,11 +78,12 @@ To make this pipeline fully functional (Push & Deploy), you would configure the 
 
 | Secret Name | Description |
 | :--- | :--- |
-| `DOCKER_USERNAME` | Your Docker Hub / Registry username. |
-| `DOCKER_PASSWORD` | Your Docker Hub / Registry password or token. |
-| `AWS_ACCESS_KEY_ID` | (Optional) If deploying to AWS. |
-| `AWS_SECRET_ACCESS_KEY` | (Optional) If deploying to AWS. |
-| `SSH_KEY` | (Optional) If deploying via SSH to a VM. |
+| `CR_PAT` | Personal Access Token for GitHub Container Registry (used in deployment). |
+| `EC2_HOST` | EC2 instance public IP or hostname (for SSH deployment). |
+| `EC2_USER` | SSH username for EC2 instance. |
+| `EC2_SSH_KEY` | Private SSH key for EC2 instance. |
+
+*Note: `GITHUB_TOKEN` is automatically provided by GitHub Actions for GHCR access. Deployment is optional and will be skipped if these secrets are not configured.*
 
 *These are not required for the current simulation mode.*
 
