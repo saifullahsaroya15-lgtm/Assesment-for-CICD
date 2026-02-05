@@ -19,10 +19,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          # cache: 'npm' # Disabled because we don't have package-lock.json committed
+          # cache: 'npm' # Disabled to prevent "lock file not found" error
 
       - name: Install Dependencies
-        run: npm install # Changed from 'npm ci' to 'npm install' because we don't have a lockfile
+        run: npm install # uses `install` to generate lockfile on the fly
 
       - name: Run Tests
         run: npm test
