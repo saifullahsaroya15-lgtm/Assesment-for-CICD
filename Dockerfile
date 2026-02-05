@@ -1,6 +1,9 @@
 # Stage 1: Builder
 FROM node:18-alpine AS builder
 
+# Update global npm to fix vulnerabilities (CVE-2026-24842)
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
 # Copy package definition first for better cache utilization
@@ -20,6 +23,9 @@ COPY . .
 
 # Stage 2: Production Runner
 FROM node:18-alpine AS runner
+
+# Update global npm to fix vulnerabilities
+RUN npm install -g npm@latest
 
 WORKDIR /app
 
